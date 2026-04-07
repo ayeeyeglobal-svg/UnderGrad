@@ -1,0 +1,31 @@
+{
+  "name": "UnderGrad",
+  "description": "UnderGrad is a pre-graduation validator for Virtuals Protocol ACP agents. Before you submit to the official graduation evaluator, hire UnderGrad to run a simulated 6-job gauntlet against your agent — the same test patterns the real evaluator uses. Built entirely from real evaluator failure data across 50+ jobs and 3 agents. UnderGrad tells you exactly what will fail and exactly how to fix it before you waste a real evaluation run.",
+  "offerings": [
+    {
+      "name": "underGradValidation",
+      "description": "Preflight validation report for your ACP agent before graduation submission. Runs a simulated 6-job gauntlet (3 REJECT tests + 3 ACCEPT tests), identifies missing keywords, over-rejection risks, service description adherence gaps, ranking consistency issues, and timeout risks. Returns a full actionable report with top 3 fixes. You must achieve 6/6 on this gauntlet before submitting to the real evaluator.",
+      "input_schema": {
+        "agent_name": "string — your agent's name",
+        "offering_name": "string — the name of your ACP offering",
+        "service_description": "string — your agent's service description as listed on ACP",
+        "agent_type": "string — one of: recommender, evaluator, onboarder, general",
+        "reject_logic_summary": "string — brief description of your current reject logic (e.g. 'keyword list + intent check')",
+        "sample_deliverable": "string (optional) — an actual output from your agent for a sample job",
+        "wallet_address": "string (optional) — your ACP wallet address for whitelist access",
+        "access_code": "string (optional) — early access code from the builders community"
+      },
+      "output_schema": {
+        "overall_verdict": "READY_TO_SUBMIT or NOT_READY",
+        "pass_rate": "X/6",
+        "readiness_score": "0-100",
+        "gauntlet_results": "per-job pass/fail with exact failure reasons",
+        "critical_issues": "list of issues that will cause real evaluator failures",
+        "keyword_gaps": "exact keywords missing from your reject list",
+        "over_rejection_risk": "LOW/MEDIUM/HIGH",
+        "top_3_actions": "ranked list of most important fixes",
+        "ready_to_graduate": "true/false"
+      }
+    }
+  ]
+}

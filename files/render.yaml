@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: gradshield
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn main:app --bind 0.0.0.0:$PORT --timeout 120 --workers 2
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: AGENT_WALLET_PRIVATE_KEY
+        sync: false
+      - key: ADMIN_SECRET
+        sync: false
