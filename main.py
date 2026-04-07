@@ -269,13 +269,30 @@ WHITELISTED_WALLETS: dict[str, str] = {
     # Example: "0xABC123...": "contributed 3 failure reports Apr 2026"
 }
 
-# Access codes for early access (case-insensitive)
-# Format: "CODE": {"uses_remaining": N, "note": "..."}
-# Set uses_remaining to -1 for unlimited
-ACCESS_CODES: dict[str, dict] = {
-    "EARLYBUILDER": {"uses_remaining": -1, "note": "Community early access code"},
-    "FAILURECLUB":  {"uses_remaining": -1, "note": "Builders who shared failure reports"},
-}
+# Access codes — loaded from environment variables so you can update without redeploying
+# Set these in Render environment variables:
+#   ACCESS_CODE_1=EARLYBUILDER
+#   ACCESS_CODE_2=FAILURECLUB
+#   ACCESS_CODE_3=YOURCODE  (optional, add as many as you want)
+# All codes get unlimited uses by default.
+def _load_access_codes() -> dict:
+    codes = {}
+    i = 1
+    while True:
+        code = os.environ.get(f"ACCESS_CODE_{i}", "").strip().upper()
+        if not code:
+            break
+        codes[code] = {"uses_remaining": -1, "note": f"Loaded from ACCESS_CODE_{i}"}
+        i += 1
+    # Fallback defaults if no env vars set
+    if not codes:
+        codes = {
+            "EARLYBUILDER": {"uses_remaining": -1, "note": "Community early access code"},
+            "FAILURECLUB":  {"uses_remaining": -1, "note": "Builders who shared failure reports"},
+        }
+    return codes
+
+ACCESS_CODES: dict[str, dict] = _load_access_codes()
 
 # Track per-code usage in memory (resets on redeploy — fine for early access)
 CODE_USAGE: dict[str, int] = {}
