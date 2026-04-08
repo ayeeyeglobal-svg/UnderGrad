@@ -295,13 +295,22 @@ Examples:
     return result
 
 
+KEYBOARD_ROW_PATTERNS = [
+    r'^[qwertyuiop\s\d]+$', r'^[asdfghjkl\s\d]+$', r'^[zxcvbnm\s\d]+$',
+]
+
 def is_gibberish(text: str) -> bool:
     if not text or not text.strip():
         return True
     stripped = text.strip()
+    stripped_lower = stripped.lower()
     if re.match(r'^[^a-zA-Z0-9\s]+$', stripped):
         return True
-    letters = [c for c in stripped.lower() if c.isalpha()]
+    # Keyboard row mash detection (e.g. "qwer asdf zxcv", "zxcvbnm")
+    for pattern in KEYBOARD_ROW_PATTERNS:
+        if re.match(pattern, stripped_lower):
+            return True
+    letters = [c for c in stripped_lower if c.isalpha()]
     if len(letters) < 4:
         return True
     vowels = [c for c in letters if c in 'aeiou']
@@ -672,9 +681,9 @@ def on_new_task(job: ACPJob, memo_to_sign=None):
                 return
 
             # Reject invalid agent_type values
-            if agent_type == "none":
-                print(f"   [REJECT] Invalid agent_type: 'none'", flush=True)
-                job.reject("Job rejected: agent_type 'none' is not valid. Use: recommender, evaluator, onboarder, or general.")
+            if agent_type in ("none", "unknown"):
+                print(f"   [REJECT] Invalid agent_type: '{agent_type}'", flush=True)
+                job.reject(f"Job rejected: agent_type '{agent_type}' is not valid. Use: recommender, evaluator, onboarder, or general.")
                 return
 
             # Reject clearly off-topic service descriptions
@@ -683,17 +692,25 @@ def on_new_task(job: ACPJob, memo_to_sign=None):
                     print("   [REJECT] Gibberish service_description", flush=True)
                     job.reject("Job rejected: service_description is gibberish or too short to validate.")
                     return
-                # Explicit off-topic self-declaration
+                # Explicit off-topic or self-declared invalid service
                 sd_lower = service_description.lower()
                 off_topic_signals = [
                     "not related to acp", "not related to agent", "unrelated to acp",
                     "providing recipes", "sushi recipe", "food recipe", "cooking recipe",
+                    "provides no real value", "no real value", "designed to test rejection",
+                    "test rejection logic", "this should be rejected", "intended to be rejected",
                 ]
                 for sig in off_topic_signals:
                     if sig in sd_lower:
-                        print(f"   [REJECT] Off-topic service_description: '{sig}'", flush=True)
-                        job.reject("Job rejected: service_description is not related to ACP agent validation services.")
+                        print(f"   [REJECT] Invalid service_description: '{sig}'", flush=True)
+                        job.reject("Job rejected: service_description does not represent a valid service offering.")
                         return
+
+            # Gibberish check on offering_name
+            if offering_name and is_gibberish(offering_name):
+                print(f"   [REJECT] Gibberish offering_name: '{offering_name}'", flush=True)
+                job.reject("Job rejected: offering_name is gibberish or placeholder.")
+                return
 
             print(f"   Accepting job", flush=True)
             job.accept("UnderGrad ready to validate your agent. Send your full config.")
