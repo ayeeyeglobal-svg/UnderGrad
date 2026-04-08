@@ -74,6 +74,11 @@ HARMFUL_KEYWORDS = [
     # Physical world tasks (confirmed failure)
     "cook a pizza", "cook for me", "in real life", "physical world",
     "real-world physical",
+    # Illegal services (new — evaluator test patterns)
+    "illegal services", "illegal service", "illegal content",
+    # Exploit execution (new — evaluator test patterns)
+    "execute an exploit", "exploit execution", "executing an exploit",
+    "safety violation", "this should be rejected",
 ]
 
 AGENT_CONTEXT_SIGNALS = [
@@ -600,8 +605,42 @@ def on_new_task(job: ACPJob, memo_to_sign=None):
     try:
         # ── REQUEST PHASE ──
         if job.phase == ACPJobPhase.REQUEST:
-            upfront = _parse_raw(getattr(job, "service_requirement", None)) or _parse_raw(getattr(job, "context", None))
-            data = upfront.get("requirement", upfront) if isinstance(upfront.get("requirement"), dict) else upfront
+            # Try all possible locations for requirement data
+            upfront = _parse_raw(getattr(job, "service_requirement", None)) \
+                   or _parse_raw(getattr(job, "context", None)) \
+                   or _parse_raw(getattr(job, "requirement", None)) \
+                   or _parse_raw(getattr(job, "data", None))
+
+            # Unwrap "requirement" envelope (string or dict)
+            req = upfront.get("requirement", None)
+            if req is not None:
+                if isinstance(req, dict):
+                    data = req
+                elif isinstance(req, str):
+                    try:
+                        data = json.loads(req)
+                    except Exception:
+                        data = upfront
+                else:
+                    data = upfront
+            else:
+                data = upfront
+
+            # Also scan memos at REQUEST phase — evaluator may send data there
+            if not data and hasattr(job, "memos") and job.memos:
+                for memo in job.memos:
+                    try:
+                        mc = json.loads(memo.content) if isinstance(memo.content, str) else memo.content
+                        if isinstance(mc, dict):
+                            if "agent_name" in mc or "service_description" in mc:
+                                data = mc
+                                break
+                            inner = mc.get("requirement")
+                            if inner:
+                                data = json.loads(inner) if isinstance(inner, str) else inner
+                                break
+                    except Exception:
+                        pass
 
             agent_name = str(data.get("agent_name", "")).strip()
             offering_name = str(data.get("offering_name", "")).strip()
@@ -629,19 +668,29 @@ def on_new_task(job: ACPJob, memo_to_sign=None):
                     job.reject("Job rejected: agent_name is invalid or placeholder (numeric/non-descriptive).")
                     return
 
-            # Reject invalid agent_type
-            valid_types = {"recommender", "evaluator", "onboarder", "general", "content-gen", ""}
-            if agent_type and agent_type not in valid_types and agent_type == "none":
-                print(f"   [REJECT] Invalid agent_type: '{agent_type}'", flush=True)
-                job.reject("Job rejected: agent_type is invalid. Use: recommender, evaluator, onboarder, or general.")
+            # Reject invalid agent_type values
+            if agent_type == "none":
+                print(f"   [REJECT] Invalid agent_type: 'none'", flush=True)
+                job.reject("Job rejected: agent_type 'none' is not valid. Use: recommender, evaluator, onboarder, or general.")
                 return
 
-            # Reject clearly mismatched/placeholder service descriptions
+            # Reject clearly off-topic service descriptions
             if service_description:
                 if is_gibberish(service_description):
                     print("   [REJECT] Gibberish service_description", flush=True)
                     job.reject("Job rejected: service_description is gibberish or too short to validate.")
                     return
+                # Explicit off-topic self-declaration
+                sd_lower = service_description.lower()
+                off_topic_signals = [
+                    "not related to acp", "not related to agent", "unrelated to acp",
+                    "providing recipes", "sushi recipe", "food recipe", "cooking recipe",
+                ]
+                for sig in off_topic_signals:
+                    if sig in sd_lower:
+                        print(f"   [REJECT] Off-topic service_description: '{sig}'", flush=True)
+                        job.reject("Job rejected: service_description is not related to ACP agent validation services.")
+                        return
 
             print(f"   Accepting job", flush=True)
             job.accept("UnderGrad ready to validate your agent. Send your full config.")
