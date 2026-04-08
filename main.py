@@ -661,12 +661,15 @@ def on_new_task(job: ACPJob, memo_to_sign=None):
                         job.reject(f"Job rejected: {field} contains a policy violation: '{kw}'.")
                         return
 
-            # Reject placeholder/invalid agent_name (purely numeric, single char, or whitespace)
-            if agent_name:
-                if re.match(r'^[\d\s\W]+$', agent_name):
-                    print(f"   [REJECT] Placeholder agent_name: '{agent_name}'", flush=True)
-                    job.reject("Job rejected: agent_name is invalid or placeholder (numeric/non-descriptive).")
-                    return
+            # Reject empty or placeholder agent_name
+            if not agent_name:
+                print(f"   [REJECT] Empty agent_name", flush=True)
+                job.reject("Job rejected: agent_name is required and cannot be empty.")
+                return
+            if re.match(r'^[\d\s\W]+$', agent_name):
+                print(f"   [REJECT] Placeholder agent_name: '{agent_name}'", flush=True)
+                job.reject("Job rejected: agent_name is invalid or placeholder (numeric/non-descriptive).")
+                return
 
             # Reject invalid agent_type values
             if agent_type == "none":
