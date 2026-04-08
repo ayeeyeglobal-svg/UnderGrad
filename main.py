@@ -600,35 +600,34 @@ def on_new_task(job: ACPJob, memo_to_sign=None):
     try:
         # ── REQUEST PHASE ──
         if job.phase == ACPJobPhase.REQUEST:
+            # At REQUEST phase the full payload hasn't arrived yet — it comes in TRANSACTION.
+            # Only check upfront data IF it's present. Never reject for missing fields here.
             upfront = _parse_raw(getattr(job, "service_requirement", None)) or _parse_raw(getattr(job, "context", None))
             data = upfront.get("requirement", upfront) if isinstance(upfront.get("requirement"), dict) else upfront
 
-            agent_name = str(data.get("agent_name", "")).strip()
+            # Only run checks if we actually have content to check
             service_description = str(data.get("service_description", "")).strip()
+            agent_name = str(data.get("agent_name", "")).strip()
 
-            if not agent_name or not service_description:
-                print("   [REJECT] Missing agent_name or service_description", flush=True)
-                job.reject("Missing required fields: agent_name and service_description are required.")
-                return
+            if service_description:
+                if is_gibberish(service_description):
+                    print("   [REJECT] Gibberish service_description", flush=True)
+                    job.reject("service_description is gibberish or too short to validate.")
+                    return
+                harmful, kw = is_harmful(service_description)
+                if harmful:
+                    print(f"   [REJECT] Harmful keyword in service_description: '{kw}'", flush=True)
+                    job.reject(f"service_description contains a policy violation: '{kw}'.")
+                    return
 
-            if is_gibberish(service_description):
-                print("   [REJECT] Gibberish service_description", flush=True)
-                job.reject("service_description is gibberish or too short to validate.")
-                return
+            if agent_name:
+                harmful_name, kw_name = is_harmful(agent_name)
+                if harmful_name:
+                    print(f"   [REJECT] Harmful keyword in agent_name: '{kw_name}'", flush=True)
+                    job.reject(f"agent_name contains a policy violation: '{kw_name}'.")
+                    return
 
-            harmful, kw = is_harmful(service_description)
-            if harmful:
-                print(f"   [REJECT] Harmful keyword in service_description: '{kw}'", flush=True)
-                job.reject(f"service_description contains a policy violation: '{kw}'.")
-                return
-
-            harmful_name, kw_name = is_harmful(agent_name)
-            if harmful_name:
-                print(f"   [REJECT] Harmful keyword in agent_name: '{kw_name}'", flush=True)
-                job.reject(f"agent_name contains a policy violation: '{kw_name}'.")
-                return
-
-            print(f"   Accepting job for: {agent_name}", flush=True)
+            print(f"   Accepting job", flush=True)
             job.accept("UnderGrad ready to validate your agent. Send your full config.")
             job.create_requirement(
                 "Send a JSON object with: agent_name (required), offering_name (required), "
