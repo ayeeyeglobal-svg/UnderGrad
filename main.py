@@ -827,20 +827,20 @@ if __name__ == "__main__":
     print("  Offering: underGradValidation  |  SLA: 5 min")
     print("=" * 55)
 
-    wallet = os.environ.get("AGENT_WALLET_ADDRESS", "")
-    entity_id = os.environ.get("ENTITY_ID", "")
+    wallet = os.environ.get("SELLER_AGENT_WALLET_ADDRESS", "")
+    entity_id = os.environ.get("SELLER_ENTITY_ID", "")
 
     if not wallet or not entity_id:
-        print("\n   ERROR: Set AGENT_WALLET_ADDRESS and ENTITY_ID in Render environment variables.")
-        print("   AGENT_WALLET_ADDRESS = your agent's wallet address from Virtuals Protocol")
-        print("   ENTITY_ID = your entity ID from Virtuals Protocol registration (e.g. 1)")
+        print("\n   ERROR: Set SELLER_AGENT_WALLET_ADDRESS and SELLER_ENTITY_ID in Render environment variables.")
+        print("   SELLER_AGENT_WALLET_ADDRESS = your agent's wallet address from Virtuals Protocol")
+        print("   SELLER_ENTITY_ID = your entity ID from Virtuals Protocol registration (e.g. 1)")
         sys.exit(1)
 
     # Start HTTP server first so Render detects the open port
     start_admin_server()
 
     contract_client = ACPContractClientV2(
-        wallet_private_key=os.environ["AGENT_WALLET_PRIVATE_KEY"],
+        wallet_private_key=os.environ["WHITELISTED_WALLET_PRIVATE_KEY"],
         agent_wallet_address=wallet,
         entity_id=int(entity_id),
         config=BASE_MAINNET_CONFIG_V2,
@@ -854,6 +854,7 @@ if __name__ == "__main__":
     print(f"\n   [LIVE] UnderGrad is LIVE and listening for jobs")
     print(f"   Wallet:  {wallet[:10]}...")
     print(f"   Entity:  {entity_id}")
+    print(f"   Signing: {os.environ['WHITELISTED_WALLET_PRIVATE_KEY'][:6]}...")
     print(f"\n   Waiting for validation requests...\n")
 
     import signal
