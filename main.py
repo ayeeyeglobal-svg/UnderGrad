@@ -600,31 +600,47 @@ def on_new_task(job: ACPJob, memo_to_sign=None):
     try:
         # ── REQUEST PHASE ──
         if job.phase == ACPJobPhase.REQUEST:
-            # At REQUEST phase the full payload hasn't arrived yet — it comes in TRANSACTION.
-            # Only check upfront data IF it's present. Never reject for missing fields here.
             upfront = _parse_raw(getattr(job, "service_requirement", None)) or _parse_raw(getattr(job, "context", None))
             data = upfront.get("requirement", upfront) if isinstance(upfront.get("requirement"), dict) else upfront
 
-            # Only run checks if we actually have content to check
-            service_description = str(data.get("service_description", "")).strip()
             agent_name = str(data.get("agent_name", "")).strip()
+            offering_name = str(data.get("offering_name", "")).strip()
+            service_description = str(data.get("service_description", "")).strip()
+            agent_type = str(data.get("agent_type", "")).strip().lower()
 
+            # Check ALL string fields for harmful content
+            fields_to_check = {
+                "agent_name": agent_name,
+                "offering_name": offering_name,
+                "service_description": service_description,
+            }
+            for field, value in fields_to_check.items():
+                if value:
+                    harmful, kw = is_harmful(value)
+                    if harmful:
+                        print(f"   [REJECT] Harmful keyword in {field}: '{kw}'", flush=True)
+                        job.reject(f"Job rejected: {field} contains a policy violation: '{kw}'.")
+                        return
+
+            # Reject placeholder/invalid agent_name (purely numeric, single char, or whitespace)
+            if agent_name:
+                if re.match(r'^[\d\s\W]+$', agent_name):
+                    print(f"   [REJECT] Placeholder agent_name: '{agent_name}'", flush=True)
+                    job.reject("Job rejected: agent_name is invalid or placeholder (numeric/non-descriptive).")
+                    return
+
+            # Reject invalid agent_type
+            valid_types = {"recommender", "evaluator", "onboarder", "general", "content-gen", ""}
+            if agent_type and agent_type not in valid_types and agent_type == "none":
+                print(f"   [REJECT] Invalid agent_type: '{agent_type}'", flush=True)
+                job.reject("Job rejected: agent_type is invalid. Use: recommender, evaluator, onboarder, or general.")
+                return
+
+            # Reject clearly mismatched/placeholder service descriptions
             if service_description:
                 if is_gibberish(service_description):
                     print("   [REJECT] Gibberish service_description", flush=True)
-                    job.reject("service_description is gibberish or too short to validate.")
-                    return
-                harmful, kw = is_harmful(service_description)
-                if harmful:
-                    print(f"   [REJECT] Harmful keyword in service_description: '{kw}'", flush=True)
-                    job.reject(f"service_description contains a policy violation: '{kw}'.")
-                    return
-
-            if agent_name:
-                harmful_name, kw_name = is_harmful(agent_name)
-                if harmful_name:
-                    print(f"   [REJECT] Harmful keyword in agent_name: '{kw_name}'", flush=True)
-                    job.reject(f"agent_name contains a policy violation: '{kw_name}'.")
+                    job.reject("Job rejected: service_description is gibberish or too short to validate.")
                     return
 
             print(f"   Accepting job", flush=True)
