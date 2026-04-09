@@ -703,7 +703,10 @@ def on_new_task(job: ACPJob, memo_to_sign=None):
                     "out of scope for acp", "out of scope for digital", "not an acp",
                     "providing recipes", "sushi recipe", "food recipe", "cooking recipe",
                     "provides no real value", "no real value", "designed to test rejection",
-                    "test rejection logic", "this should be rejected", "intended to be rejected",
+                    "test rejection logic", "test for rejection logic", "testing rejection logic",
+                    "this should be rejected", "intended to be rejected",
+                    "must not fulfill", "must not process", "do not fulfill",
+                    "explicitly states that the provider", "explicitly states the provider",
                     "ordering a physical", "physical pizza", "pizza delivery", "pizza for delivery",
                     "delivery to", "physical delivery", "physical food", "physical pepperoni",
                 ]
