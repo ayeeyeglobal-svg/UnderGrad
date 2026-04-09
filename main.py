@@ -79,6 +79,10 @@ HARMFUL_KEYWORDS = [
     # Exploit execution (new — evaluator test patterns)
     "execute an exploit", "exploit execution", "executing an exploit",
     "safety violation", "this should be rejected",
+    # Hack / bypass validation (new — evaluator test patterns)
+    "hack", "hackvalidation", "bypass validation", "bypass safety",
+    "attempts to bypass", "override validation", "malicious override",
+    "invalid access code", "circumvent validation",
 ]
 
 AGENT_CONTEXT_SIGNALS = [
@@ -696,9 +700,12 @@ def on_new_task(job: ACPJob, memo_to_sign=None):
                 sd_lower = service_description.lower()
                 off_topic_signals = [
                     "not related to acp", "not related to agent", "unrelated to acp",
+                    "out of scope for acp", "out of scope for digital", "not an acp",
                     "providing recipes", "sushi recipe", "food recipe", "cooking recipe",
                     "provides no real value", "no real value", "designed to test rejection",
                     "test rejection logic", "this should be rejected", "intended to be rejected",
+                    "ordering a physical", "physical pizza", "pizza delivery", "pizza for delivery",
+                    "delivery to", "physical delivery", "physical food", "physical pepperoni",
                 ]
                 for sig in off_topic_signals:
                     if sig in sd_lower:
