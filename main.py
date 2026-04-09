@@ -684,8 +684,9 @@ def on_new_task(job: ACPJob, memo_to_sign=None):
                 job.reject("Job rejected: agent_name is invalid or placeholder (numeric/non-descriptive).")
                 return
 
-            # Reject invalid agent_type values
-            if agent_type in ("none", "unknown"):
+            # Reject invalid agent_type values — only accept known valid types
+            VALID_AGENT_TYPES = {"recommender", "evaluator", "onboarder", "general", "content-gen", ""}
+            if agent_type and agent_type not in VALID_AGENT_TYPES:
                 print(f"   [REJECT] Invalid agent_type: '{agent_type}'", flush=True)
                 job.reject(f"Job rejected: agent_type '{agent_type}' is not valid. Use: recommender, evaluator, onboarder, or general.")
                 return
@@ -701,6 +702,8 @@ def on_new_task(job: ACPJob, memo_to_sign=None):
                 off_topic_signals = [
                     "not related to acp", "not related to agent", "unrelated to acp",
                     "out of scope for acp", "out of scope for digital", "not an acp",
+                    "completely unrelated to virtuals", "unrelated to virtuals protocol",
+                    "not related to virtuals", "nothing to do with acp",
                     "providing recipes", "sushi recipe", "food recipe", "cooking recipe",
                     "provides no real value", "no real value", "designed to test rejection",
                     "test rejection logic", "test for rejection logic", "testing rejection logic",
@@ -709,11 +712,26 @@ def on_new_task(job: ACPJob, memo_to_sign=None):
                     "explicitly states that the provider", "explicitly states the provider",
                     "ordering a physical", "physical pizza", "pizza delivery", "pizza for delivery",
                     "delivery to", "physical delivery", "physical food", "physical pepperoni",
+                    "order a sandwich", "order sandwich", "ham and cheese", "from the local deli",
+                    "from the deli", "order food", "order a meal",
                 ]
                 for sig in off_topic_signals:
                     if sig in sd_lower:
                         print(f"   [REJECT] Invalid service_description: '{sig}'", flush=True)
-                        job.reject("Job rejected: service_description does not represent a valid service offering.")
+                        job.reject("Job rejected: service_description does not represent a valid ACP service offering.")
+                        return
+
+            # Also check reject_logic_summary for out-of-scope declarations
+            reject_logic = str(data.get("reject_logic_summary", "")).strip().lower()
+            if reject_logic:
+                reject_logic_offtopic = [
+                    "physical goods", "sells physical", "only validates physical",
+                    "physical products", "real-world goods",
+                ]
+                for sig in reject_logic_offtopic:
+                    if sig in reject_logic:
+                        print(f"   [REJECT] Out-of-scope reject_logic_summary: '{sig}'", flush=True)
+                        job.reject("Job rejected: reject_logic_summary describes a physical goods service which is out of scope for ACP.")
                         return
 
             # Gibberish check on offering_name
