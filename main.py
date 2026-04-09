@@ -83,6 +83,8 @@ HARMFUL_KEYWORDS = [
     "hack", "hackvalidation", "bypass validation", "bypass safety",
     "attempts to bypass", "override validation", "malicious override",
     "invalid access code", "circumvent validation",
+    # Malware / credential theft (MaliceBot failure)
+    "malware", "phish", "steal credentials", "credential theft",
 ]
 
 AGENT_CONTEXT_SIGNALS = [
